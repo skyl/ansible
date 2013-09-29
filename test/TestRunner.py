@@ -22,7 +22,7 @@ def get_binary(name):
     return None
 
 
-class TestRunner(unittest.TestCase):
+class BaseRunnerTestCase(unittest.TestCase):
 
     def setUp(self):
         self.user = getpass.getuser()
@@ -65,7 +65,7 @@ class TestRunner(unittest.TestCase):
         return filename
 
     def _run(self, module_name, module_args, background=0, check_mode=False):
-        ''' run a module and get the localhost results '''
+        '''run a module and get the localhost results'''
         self.runner.module_name = module_name
         args = ' '.join(module_args)
         self.runner.module_args = args
@@ -74,8 +74,11 @@ class TestRunner(unittest.TestCase):
         results = self.runner.run()
         # when using nosetests this will only show up on failure
         # which is pretty useful
-        assert "localhost" in results['contacted']
+        self.assertIn("localhost", results["contacted"])
         return results['contacted']['localhost']
+
+
+class TestRunner(BaseRunnerTestCase):
 
     def test_action_plugins(self):
         result = self._run("uncategorized_plugin", [])
@@ -166,26 +169,6 @@ class TestRunner(unittest.TestCase):
 
         result = self._run('shell', ["removes=/tmp/ansible\\ command\\ test", "false"])
         assert 'skipped' in result
-
-    def test_git(self):
-        self._run('file', ['path=/tmp/gitdemo', 'state=absent'])
-        self._run('file', ['path=/tmp/gd', 'state=absent'])
-        self._run('command', ['git init gitdemo', 'chdir=/tmp'])
-        self._run('command', ['touch a', 'chdir=/tmp/gitdemo'])
-        self._run('command', ['git add *', 'chdir=/tmp/gitdemo'])
-        self._run('command', ['git commit -m "test commit 2"', 'chdir=/tmp/gitdemo'])
-        self._run('command', ['touch b', 'chdir=/tmp/gitdemo'])
-        self._run('command', ['git add *', 'chdir=/tmp/gitdemo'])
-        self._run('command', ['git commit -m "test commit 2"', 'chdir=/tmp/gitdemo'])
-        result = self._run('git', ["repo=\"file:///tmp/gitdemo\"", "dest=/tmp/gd"])
-        assert result['changed']
-        # test the force option not set
-        self._run('file', ['path=/tmp/gd/a', 'state=absent'])
-        result = self._run('git', ["repo=\"file:///tmp/gitdemo\"", "dest=/tmp/gd", "force=no"])
-        assert result['failed']
-        # test the force option when set
-        result = self._run('git', ["repo=\"file:///tmp/gitdemo\"", "dest=/tmp/gd", "force=yes"])
-        assert result['changed']
 
     def test_file(self):
         filedemo = tempfile.mkstemp()[1]
